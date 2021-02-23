@@ -1,0 +1,63 @@
+---
+- name: Run "apt-get update"
+  apt:
+    update_cache: yes
+- name: Run "apt-get upgrade"
+  apt:
+    upgrade: yes
+- name: Install build dependencies
+  apt:
+    pkg:
+    - "build-essential"
+    - "subversion"
+    - "cmake"
+    - "libbluetooth-dev"
+    - "libsdl2-dev"
+    - "libcurl4-openssl-dev"
+    - "libenet-dev"
+    - "libfreetype6-dev"
+    - "libharfbuzz-dev"
+    - "libjpeg-dev"
+    - "libogg-dev"
+    - "libopenal-dev"
+    - "libpng-dev"
+    - "libssl-dev"
+    - "libvorbis-dev"
+    - "nettle-dev"
+    - "pkg-config"
+    - "zlib1g-dev"
+- name: Create stk directory
+  file:
+    path: /src/stk
+    state: directory
+- name: Checkout game code
+  git:
+    repo: https://github.com/supertuxkart/stk-code.git
+    dest: /src/stk/stk-code
+- name: Checkout assets
+  subversion:
+    repo: https://svn.code.sf.net/p/supertuxkart/code/stk-assets
+    dest: /src/stk/stk-assets
+- name: "Create stk-code build dir"
+  file:
+    path: "/src/stk/stk-code/cmake_build"
+    state: directory
+- name: Build game binary
+  shell: "cmake .. -DSERVER_ONLY=ON"
+  args:
+    chdir: "/src/stk/stk-code/cmake_build"
+- name: Install game binary
+  shell: "make install"
+  args:
+    chdir: "/src/stk/stk-code/cmake_build"
+- name: Init STK
+  shell: "supertuxkart --init-user --login={{ auth.username }} --password={{ auth.password }}"
+- name: Template config
+  template:
+    src: server_config.xml.j2
+    dest: "$HOME/.config/supertuxkart/config-0.10/server_config.xml"
+    backup: yes
+    force: yes
+  with_items: conf
+- name: UFW allow STK server port
+  shell: "ufw allow 2759"
